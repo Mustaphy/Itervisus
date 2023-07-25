@@ -1,0 +1,21 @@
+.typewriter-cursor {
+  color: var(--color-tertiary);
+  font-weight: 600;
+
+  &::after {
+    content: '|';
+    color: #ffffff;
+    animation: blinking 1s linear infinite;
+    font-size: 36px;
+  }
+}
+
+@keyframes blinking {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
