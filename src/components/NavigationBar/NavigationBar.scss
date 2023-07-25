@@ -1,0 +1,59 @@
+.navigation-bar {
+  display: flex;
+  position: fixed;
+  justify-content: space-between;
+  align-items: center;
+  height: 72px;
+  transition: 1s;
+  width: 100%;
+  padding: 0 16px;
+
+  #navigation-name {
+    font-size: 32px;
+    font-weight: 700;
+    color: #ffffff;
+    text-shadow: 1px 1px 1px var(--color-secondary);
+  }
+
+  #navigation-links li {
+    display: inline-block;
+    padding: 0 0 0 20px;
+    font-size: 24px;
+  }
+
+  .navigation-text {
+    color: #ffffff;
+    font-weight: 600;
+
+    &:hover {
+      transition: 0.5s;
+      color: var(--color-tertiary);
+    }
+  }
+
+  &.sticky {
+    height: 56px;
+    width: calc(100% - 24px);
+    background: #ffffff;
+    margin: 12px;
+    border-radius: 8px;
+
+    #navigation-name {
+      color: var(--color-tertiary);
+    }
+
+    #navigation-links li .navigation-text {
+      color: var(--color-primary);
+
+      &:hover {
+        color: var(--color-tertiary);
+      }
+    }
+  }
+}
+
+/* Navigation Bar Filler */
+.filler {
+  position: relative;
+  visibility: hidden;
+}
