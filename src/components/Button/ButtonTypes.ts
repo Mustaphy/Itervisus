@@ -1,4 +1,5 @@
 export type ButtonProperties = {
   text: string;
-  onClick: () => unknown;
+  onClick?: () => unknown;
+  path?: string;
 }

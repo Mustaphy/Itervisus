@@ -37,6 +37,12 @@
 
   #description {
     font-size: 32px;
+
+    #name {
+      color: #ff8000;
+      font-weight: 600;
+      animation: fullCycle 15s infinite;
+    }
   }
 
   #welcome-image-container {
@@ -99,5 +105,13 @@
   @include keyframe(25%, #ffffff);
   @include keyframe(50%, #ffffff);
   @include keyframe(75%, linear-gradient(#4d004d, #ff00ff));
+  @include keyframe(100%, #ffffff);
+}
+
+@keyframes fullCycle {
+  @include keyframe(0%, #ffffff);
+  @include keyframe(25%, #ff8000);
+  @include keyframe(50%, #0099ff);
+  @include keyframe(75%, #ff00ff);
   @include keyframe(100%, #ffffff);
 }
