@@ -73,7 +73,7 @@ const Workspace: Component = () => {
         const minY = Math.min(startY, endY);
         const maxY = Math.max(startY, endY);
 
-        return startX >= minX &&  startX <= maxX && startY >= minY && startY <= maxY;
+        return coordinates.x >= minX &&  coordinates.x <= maxX && coordinates.y >= minY && coordinates.y <= maxY;
       }
       default:
         return false;
