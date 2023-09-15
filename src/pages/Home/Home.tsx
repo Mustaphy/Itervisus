@@ -28,7 +28,7 @@ const Home: Component = () => {
           functional.
         </em>
 
-        <Button text="Create a diagram" path="workspace" />
+        <Button text="Create a new whiteboard" path="workspace" />
       </div>
     </>
   );

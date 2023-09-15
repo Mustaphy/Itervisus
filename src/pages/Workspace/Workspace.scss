@@ -4,4 +4,41 @@
 
 #canvas {
   background-color: #ffffff;
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none; /* Safari */
+  -khtml-user-select: none; /* Konqueror HTML */
+  -moz-user-select: none; /* Old versions of Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Chrome, Edge, Opera and Firefox */
+}
+
+#option-selection {
+  display: grid;
+  gap: 8px;
+  margin: 0 8px 8px 8px;
+  grid-auto-flow: column;
+  grid-template-columns: auto auto auto min-content;
+
+  button {
+    background-color: var(--color-tertiary);
+    padding: 8px;
+    border: none;
+    border-radius: 4px;
+    transition: filter 0.2s ease-in-out;
+    cursor: pointer;
+
+    img {
+      width: 24px;
+      height: 24px;
+      filter: brightness(0) invert(100%);
+    }
+
+    &.active {
+      filter: brightness(1.5)
+    }
+  }
+
+  .action {
+    background-color: #cc0000;
+  }
 }

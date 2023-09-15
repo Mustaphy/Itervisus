@@ -1,7 +1,14 @@
-import { Component, createEffect, createSignal } from 'solid-js';
+import { Component, Show, createEffect, createSignal } from 'solid-js';
 import './Workspace.scss';
 import rough from 'roughjs';
 import { Coordinates, Action, Element, Tool } from './WorkspaceTypes';
+import EmptyCursor from '../../assets/empty-cursor.svg';
+import FilledCursor from '../../assets/filled-cursor.svg';
+import EmptyLine from '../../assets/empty-line.svg';
+import FilledLine from '../../assets/filled-line.svg';
+import EmptySquare from '../../assets/empty-square.svg';
+import FilledSquare from '../../assets/filled-square.svg';
+import TrashCan from '../../assets/trash-can.svg';
 
 const generator = rough.generator();
 
@@ -152,48 +159,39 @@ const Workspace: Component = () => {
     };
   };
 
-  const handleMouseUp = (): void => {
+  const handleMouseUp = (event: MouseEvent): void => {
     setAction('default');
     setSelectedElement(null);
+
+    if (event.target instanceof HTMLCanvasElement)
+        event.target.style.cursor = 'default';
   };
 
   return (
     <>
-      <div>
-        <div>
-        <input
-            type="radio"
-            id="line"
-            name="tool"
-            value="selection"
-            checked={tool() === 'selection'}
-            onChange={() => setTool('selection')}
-          />
-          <label for="line">Selection</label>
+      <div id="option-selection">
+        <button onClick={() => setTool('selection')} class={` ${tool() == 'selection' ? 'active' : ''}`}>
+          <Show when={tool() == 'selection'} fallback={<img src={EmptyCursor} alt="Cursor" />}>
+            <img src={FilledCursor} alt="Cursor" />
+          </Show>
+        </button>
 
-          <input
-            type="radio"
-            id="line"
-            name="tool"
-            value="line"
-            checked={tool() === 'line'}
-            onChange={() => setTool('line')}
-          />
-          <label for="line">Line</label>
+        <button onClick={() => setTool('line')} class={`${tool() == 'line' ? 'active' : ''}`}>
+          <Show when={tool() == 'line'} fallback={<img src={EmptyLine} alt="Line" />}>
+            <img src={FilledLine} alt="Line" />
+          </Show>
+        </button>
 
-          <input
-            type="radio"
-            id="rectangle"
-            name="tool"
-            value="rectangle"
-            checked={tool() === 'rectangle'}
-            onChange={() => setTool('rectangle')}
-          />
-          <label for="rectangle">Rectangle</label>
-        </div>
+        <button onClick={() => setTool('rectangle')} class={`${tool() == 'rectangle' ? 'active' : ''}`}>
+          <Show when={tool() == 'rectangle'} fallback={<img src={EmptySquare} alt="Square" />}>
+            <img src={FilledSquare} alt="Square" />
+          </Show>
+        </button>
+
+        <button onClick={() => setElements([])} class="action">
+          <img src={TrashCan} alt="Square" />
+        </button>
       </div>
-
-        <button onClick={() => setElements([])}>Clear</button>
 
       <canvas
         id="canvas"
