@@ -7,6 +7,12 @@ export type Element = {
   end: Coordinates;
   tool: Tool;
   offset?: Coordinates;
+  position?: Position;
+};
+
+export type Location = {
+  start: Coordinates;
+  end: Coordinates;
 };
 
 export type Coordinates = {
@@ -20,6 +26,8 @@ const tools = [
 export type Tool = typeof tools[number];
 
 const actions = [
-  'default', 'drawing', 'moving'
+  'default', 'drawing', 'moving', 'resizing'
 ] as const;
 export type Action = typeof actions[number];
+
+export type Position = 'inside' | 'start' | 'end' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
