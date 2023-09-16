@@ -34,11 +34,23 @@
     }
 
     &.active {
-      filter: brightness(1.5)
+      filter: brightness(1.5);
+
+      &:hover {
+        filter: brightness(1.6);
+      }
+    }
+
+    &:hover {
+      filter: brightness(1.1);
     }
   }
 
   .action {
     background-color: #cc0000;
+    
+    &:hover {
+      filter: brightness(1.5);
+    }
   }
 }

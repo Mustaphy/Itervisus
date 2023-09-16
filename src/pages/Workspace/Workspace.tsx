@@ -1,7 +1,7 @@
 import { Component, Show, createEffect, createSignal } from 'solid-js';
 import './Workspace.scss';
 import rough from 'roughjs';
-import { Coordinates, Action, Element, Tool, Position, Location } from './WorkspaceTypes';
+import { Coordinates, Action, Element, Tool, MousePosition, Placement } from './WorkspaceTypes';
 import EmptyCursor from '../../assets/empty-cursor.svg';
 import FilledCursor from '../../assets/filled-cursor.svg';
 import EmptyLine from '../../assets/empty-line.svg';
@@ -40,11 +40,11 @@ const Workspace: Component = () => {
       drawable,
       start,
       end,
-      tool: type 
+      type 
     };
   };
 
-  const updateElement = (id: number, start: Coordinates, end: Coordinates, type: Tool) => {
+  const updateElement = (id: number, start: Coordinates, end: Coordinates, type: Tool): void => {
     const updatedElement = createElement(id, start, end, type);
 
     const updatedElements = [...elements()];
@@ -53,17 +53,14 @@ const Workspace: Component = () => {
     setElements(updatedElements);
   }
 
-  const getElementAtPosition = (coordinates: Coordinates): Element | undefined => {
+  const getElementAtPosition = (coordinates: Coordinates): Element | null => {
     return elements()
-      .map(element => ({ ...element, position: positionWithinElement(coordinates, element) }))
-      .find(element => element.position !== null) as Element | undefined;
+      .map(element => ({ ...element, mousePosition: positionWithinElement(coordinates, element) }))
+      .find(element => element.mousePosition !== null) as Element | null;
   }
 
-  const positionWithinElement = (coordinates: Coordinates, element: Element): Position | null => {
-    const { x: startX, y: startY } = element.start;
-    const { x: endX, y: endY } = element.end;
-
-    switch (element.tool) {
+  const positionWithinElement = (coordinates: Coordinates, element: Element): MousePosition | null => {
+    switch (element.type) {
       case 'line': {
         const offset = distance(element.start, element.end) - distance(element.start, coordinates) - distance(element.end, coordinates);
         const start = isNearPosition(coordinates, element.start) ? 'start' : null;
@@ -74,6 +71,9 @@ const Workspace: Component = () => {
       }
 
       case 'rectangle': {
+        const { x: startX, y: startY } = element.start;
+        const { x: endX, y: endY } = element.end;
+
         const topLeft = isNearPosition(coordinates, { x: startX, y: startY }) ? 'topLeft' : null;
         const topRight = isNearPosition(coordinates, { x: endX, y: startY }) ? 'topRight' : null;
         const bottomLeft = isNearPosition(coordinates, { x: startX, y: endY }) ? 'bottomLeft' : null;
@@ -96,7 +96,7 @@ const Workspace: Component = () => {
     return Math.sqrt(Math.pow(start.x - end.x, 2) + Math.pow(start.y - end.y, 2));
   }
 
-  const cursorForPosition = (position: Position): string => {
+  const cursorForPosition = (position: MousePosition): string => {
     switch (position) {
       case 'inside':
         return 'move';
@@ -116,10 +116,10 @@ const Workspace: Component = () => {
     }
   }
 
-  const adjustElementCoordinates = (element: Element) => {
-    const { start, end, tool } = element;
+  const adjustElementCoordinates = (element: Element): Placement => {
+    const { start, end, type } = element;
 
-    switch (tool) {
+    switch (type) {
       case 'line': {
         if (start.x < end.x || (start.x == end.x && start.y < end.y))
           return { start, end };
@@ -135,18 +135,21 @@ const Workspace: Component = () => {
 
         return { start: { x: minX, y: minY }, end: { x: maxX, y: maxY } }; 
       }
+
+      default:
+        return { start, end };
     };
   }
 
-  const resizedCoordinates = (mouseCoordinates: Coordinates, position: Position, elementLocation: Location): Location | undefined => {
+  const resizedCoordinates = (mouseCoordinates: Coordinates, elementStart: Coordinates, elementEnd: Coordinates, position: MousePosition): Placement | undefined => {
     const { x: mouseX, y: mouseY } = mouseCoordinates;
-    const { x: startX, y: startY } = elementLocation.start;
-    const { x: endX, y: endY } = elementLocation.end;
+    const { x: startX, y: startY } = elementStart;
+    const { x: endX, y: endY } = elementEnd;
 
     switch (position) {
       case 'topLeft':
       case 'start':
-        return { start: mouseCoordinates, end: elementLocation.end };
+        return { start: mouseCoordinates, end: elementEnd };
 
       case 'topRight':
         return { start: { x: startX, y: mouseY }, end: { x: mouseX, y: endY } };
@@ -156,7 +159,7 @@ const Workspace: Component = () => {
 
       case 'bottomRight':
       case 'end':
-        return { start: elementLocation.start, end: mouseCoordinates };
+        return { start: elementStart, end: mouseCoordinates };
     }
   }
 
@@ -176,7 +179,7 @@ const Workspace: Component = () => {
   
         setSelectedElement({ ...element, offset: { x: elementOffsetX, y: elementOffsetY } });
 
-        if (element.position == 'inside')
+        if (element.mousePosition == 'inside')
           setAction('moving');
         else
           setAction('resizing');
@@ -203,8 +206,8 @@ const Workspace: Component = () => {
       if (event.target instanceof HTMLCanvasElement) {
         const element = getElementAtPosition({ x: offsetX, y: offsetY });
 
-        event.target.style.cursor = element?.position
-          ? cursorForPosition(element.position)
+        event.target.style.cursor = element?.mousePosition
+          ? cursorForPosition(element.mousePosition)
           : 'default';
       }
     }
@@ -222,7 +225,7 @@ const Workspace: Component = () => {
         if (!selectedElement)
           return;
 
-        const { id, start, end, tool, offset } = selectedElement()!;
+        const { id, start, end, type, offset } = selectedElement()!;
         const width = end.x - start.x;
         const height = end.y - start.y;
 
@@ -237,27 +240,27 @@ const Workspace: Component = () => {
         }, {
           x: coordinatesOffset.x + width,
           y: coordinatesOffset.y + height
-        }, tool);
+        }, type);
 
         break;
       }
 
       case 'resizing': {
-        const { id, tool, position, start, end } = selectedElement()!;
-        const { start: resizedStart, end: resizedEnd } = resizedCoordinates({ x: offsetX, y: offsetY }, position!, { start, end })!;
+        const { id, type, mousePosition, start, end } = selectedElement()!;
+        const { start: resizedStart, end: resizedEnd } = resizedCoordinates({ x: offsetX, y: offsetY }, start, end, mousePosition!)!;
 
-        updateElement(id, resizedStart, resizedEnd, tool);
+        updateElement(id, resizedStart, resizedEnd, type);
       }
     };
   };
 
   const handleMouseUp = (event: MouseEvent): void => {
     const index = selectedElement()!.id;
-    const { id, tool } = elements()[index];
+    const { id, type } = elements()[index];
 
     if (action() == 'drawing' || action() == 'resizing') {
       const { start, end } = adjustElementCoordinates(elements()[index])!;
-      updateElement(id, start, end, tool);
+      updateElement(id, start, end, type);
     }
 
     setAction('default');

@@ -5,8 +5,8 @@ import Typewriter from '../../components/Typewriter/Typewriter';
 
 const Home: Component = () => {
   const textsToType = [
-    'design flowcharts',
     'brainstorm ideas',
+    'draw diagrams',
   ];
 
   return (
@@ -19,8 +19,8 @@ const Home: Component = () => {
         </p>
 
         <p id="description">
-          Explore <span id="name">Itervisus</span>, your canvas for creativity and simplicity, brought to life through
-          our user-friendly interface. Use a <span id="name">Itervisus</span> to <Typewriter textsToType={textsToType} />
+          Explore <span id="name">Itervisus</span>, your platform to create whiteboards.
+          Use <span id="name">Itervisus</span> to <Typewriter textsToType={textsToType} />
         </p>
 
         <em id="work-in-progress">

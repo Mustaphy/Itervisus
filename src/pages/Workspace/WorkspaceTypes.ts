@@ -5,14 +5,9 @@ export type Element = {
   drawable: Drawable;
   start: Coordinates;
   end: Coordinates;
-  tool: Tool;
+  type: Tool;
   offset?: Coordinates;
-  position?: Position;
-};
-
-export type Location = {
-  start: Coordinates;
-  end: Coordinates;
+  mousePosition?: MousePosition;
 };
 
 export type Coordinates = {
@@ -20,14 +15,14 @@ export type Coordinates = {
   y: number;
 };
 
-const tools = [
-  'selection', 'line', 'rectangle'
-] as const;
-export type Tool = typeof tools[number];
+export type Placement = {
+  start: Coordinates;
+  end: Coordinates;
+};
 
-const actions = [
-  'default', 'drawing', 'moving', 'resizing'
-] as const;
-export type Action = typeof actions[number];
+export type Tool = 'selection' | 'line' | 'rectangle';
 
-export type Position = 'inside' | 'start' | 'end' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+export type Action = 'default' | 'drawing' | 'moving' | 'resizing';
+
+export type MousePosition = 'inside' | 'start' | 'end' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+
