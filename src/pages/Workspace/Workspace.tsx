@@ -8,15 +8,29 @@ import EmptyLine from '../../assets/empty-line.svg';
 import FilledLine from '../../assets/filled-line.svg';
 import EmptySquare from '../../assets/empty-square.svg';
 import FilledSquare from '../../assets/filled-square.svg';
+import Undo from '../../assets/undo.svg';
+import Redo from '../../assets/redo.svg';
 import TrashCan from '../../assets/trash-can.svg';
+import { useHistory } from '../../hooks/useHistory';
 
 const generator = rough.generator();
 
 const Workspace: Component = () => {
-  const [elements, setElements] = createSignal([] as Element[]);
+  const [elements, setElements, undo, redo] = useHistory([] as Element[]);
   const [selectedElement, setSelectedElement] = createSignal(null as Element | null);
   const [action, setAction] = createSignal('default' as Action);
   const [tool, setTool] = createSignal('line' as Tool);
+
+  document.addEventListener('keydown', event => {
+    if ((event.metaKey || event.ctrlKey) && event.key == 'z') {
+      // CTRL/CMD + SHIFT + Z
+      if (event.shiftKey)
+        redo();
+      // CTRL/CMD + Z
+      else
+        undo();
+    }
+  })
 
   createEffect(() => {
     const canvas = document.querySelector('#canvas') as HTMLCanvasElement;
@@ -28,7 +42,7 @@ const Workspace: Component = () => {
     elements().forEach(element => {
       roughCanvas.draw(element.drawable);
     });
-  });
+  })
 
   const createElement = (id: number, start: Coordinates, end: Coordinates, type: Tool): Element => {
     const drawable = type === 'line'
@@ -42,7 +56,7 @@ const Workspace: Component = () => {
       end,
       type 
     };
-  };
+  }
 
   const updateElement = (id: number, start: Coordinates, end: Coordinates, type: Tool): void => {
     const updatedElement = createElement(id, start, end, type);
@@ -50,7 +64,7 @@ const Workspace: Component = () => {
     const updatedElements = [...elements()];
     updatedElements[id] = updatedElement;
     
-    setElements(updatedElements);
+    setElements(updatedElements, true);
   }
 
   const getElementAtPosition = (coordinates: Coordinates): Element | null => {
@@ -178,6 +192,8 @@ const Workspace: Component = () => {
         const elementOffsetY = offsetY - element.start.y;
   
         setSelectedElement({ ...element, offset: { x: elementOffsetX, y: elementOffsetY } });
+        // Creating a new entry in the history, so it is possible to undo and redo the movement
+        setElements((previous: Element[]) => previous);
 
         if (element.mousePosition == 'inside')
           setAction('moving');
@@ -191,7 +207,7 @@ const Workspace: Component = () => {
       case 'rectangle':
         const element = createElement(elements().length, coordinates, coordinates, tool());
 
-        setElements(previous => [...previous, element]);
+        setElements((previous: Element[]) => [...previous, element]);
         setSelectedElement(element);
         setAction('drawing');
 
@@ -252,10 +268,15 @@ const Workspace: Component = () => {
         updateElement(id, resizedStart, resizedEnd, type);
       }
     };
-  };
+  }
 
   const handleMouseUp = (event: MouseEvent): void => {
-    const index = selectedElement()!.id;
+    const element = selectedElement();
+
+    if (!element)
+      return;
+
+    const index = element.id;
     const { id, type } = elements()[index];
 
     if (action() == 'drawing' || action() == 'resizing') {
@@ -291,7 +312,16 @@ const Workspace: Component = () => {
           </Show>
         </button>
 
-        <button onClick={() => setElements([])} class="action">
+        <button id="undo" onClick={undo}>
+          <img src={Undo} alt="Undo" />
+        </button>
+
+        <button id="redo" onClick={redo}>
+          <img src={Redo} alt="Redo" />
+        </button>
+
+
+        <button id="trash" onClick={() => setElements([])}>
           <img src={TrashCan} alt="Square" />
         </button>
       </div>
@@ -306,7 +336,7 @@ const Workspace: Component = () => {
       >
       </canvas>
     </>
-  );
-};
+  )
+}
 
 export default Workspace;
