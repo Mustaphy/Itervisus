@@ -16,7 +16,7 @@ import { useHistory } from '../../hooks/useHistory';
 const generator = rough.generator();
 
 const Workspace: Component = () => {
-  const [elements, setElements, undo, redo] = useHistory([] as Element[]);
+  const { elements, setElements, undo, redo } = useHistory([]);
   const [selectedElement, setSelectedElement] = createSignal(null as Element | null);
   const [action, setAction] = createSignal('default' as Action);
   const [tool, setTool] = createSignal('line' as Tool);
@@ -319,7 +319,6 @@ const Workspace: Component = () => {
         <button id="redo" onClick={redo}>
           <img src={Redo} alt="Redo" />
         </button>
-
 
         <button id="trash" onClick={() => setElements([])}>
           <img src={TrashCan} alt="Square" />
