@@ -3,20 +3,20 @@
   align-content: center;
   justify-items: center;
   gap: 32px;
+  height: 90vh;
   text-align: center;
   grid-auto-flow: row;
   grid-template-columns: 1fr;
-  margin: 0 40px;
 
   #keywords {
-    > * {
-      background: white;
-      font-size: 80px;
-      font-weight: 700;
-      margin-right: 16px;
-    }
-
     span {
+      display: inline-block;
+      background: white;
+      font-size: 128px;
+      font-weight: 700;
+      margin: 8px 16px;
+      word-break: break-all;
+
       &:nth-child(1) {
         animation: firstCycle 15s infinite;
       }

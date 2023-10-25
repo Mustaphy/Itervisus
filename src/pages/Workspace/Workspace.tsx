@@ -1,34 +1,39 @@
 import { Component, Show, createEffect, createSignal } from 'solid-js';
 import './Workspace.scss';
 import rough from 'roughjs';
-import { Coordinates, Action, Element, Tool, MousePosition, Placement } from './WorkspaceTypes';
+import { Coordinates, Action, Element, Tool, MousePosition, Placement, Point } from './WorkspaceTypes';
 import EmptyCursor from '../../assets/empty-cursor.svg';
 import FilledCursor from '../../assets/filled-cursor.svg';
 import EmptyLine from '../../assets/empty-line.svg';
 import FilledLine from '../../assets/filled-line.svg';
 import EmptySquare from '../../assets/empty-square.svg';
 import FilledSquare from '../../assets/filled-square.svg';
+import EmptyPencil from '../../assets/empty-pencil.svg';
+import FilledPencil from '../../assets/filled-pencil.svg';
 import Undo from '../../assets/undo.svg';
 import Redo from '../../assets/redo.svg';
 import TrashCan from '../../assets/trash-can.svg';
 import { useHistory } from '../../hooks/useHistory';
-
-const generator = rough.generator();
+import { RoughCanvas } from 'roughjs/bin/canvas';
+import getStroke from 'perfect-freehand';
+import { getSvgPathFromStroke } from '../../utils/perfect-freehand-utils';
 
 const Workspace: Component = () => {
   const { elements, setElements, undo, redo } = useHistory([]);
   const [selectedElement, setSelectedElement] = createSignal(null as Element | null);
   const [action, setAction] = createSignal('default' as Action);
-  const [tool, setTool] = createSignal('line' as Tool);
+  const [tool, setTool] = createSignal('pencil' as Tool);
 
   document.addEventListener('keydown', event => {
     if ((event.metaKey || event.ctrlKey) && event.key == 'z') {
       // CTRL/CMD + SHIFT + Z
-      if (event.shiftKey)
+      if (event.shiftKey) {
         redo();
+      }
       // CTRL/CMD + Z
-      else
+      else {
         undo();
+      }
     }
   })
 
@@ -39,32 +44,76 @@ const Workspace: Component = () => {
 
     context.clearRect(0, 0, canvas.width, canvas.height);
 
-    elements().forEach(element => {
-      roughCanvas.draw(element.drawable);
-    });
+    elements().forEach(element => drawElement(element, roughCanvas, context));
   })
 
-  const createElement = (id: number, start: Coordinates, end: Coordinates, type: Tool): Element => {
-    const drawable = type === 'line'
-      ? generator.line(start.x, start.y, end.x, end.y)
-      : generator.rectangle(start.x, start.y, end.x - start.x, end.y - start.y);
+  const drawElement = (element: Element, roughCanvas: RoughCanvas, context: CanvasRenderingContext2D): void => {
+    switch (element.type) {
+      case 'line':
+      case 'rectangle': {
+        roughCanvas.draw(element.drawable);
 
-    return {
-      id,
-      drawable,
-      start,
-      end,
-      type 
-    };
+        break;
+      }
+
+      case 'pencil': {
+        const stroke = getStroke(element.points!, { size: 3 })
+        const outlinePoints = getSvgPathFromStroke(stroke);
+
+        context.fill(new Path2D(outlinePoints))
+
+        break;
+      }
+    }
+  }
+
+  const createElement = (id: number, start: Coordinates, end: Coordinates, type: Tool): Element => {
+    const generator = rough.generator();
+
+    switch (type) {
+      case 'line':
+      case 'rectangle': {
+        const drawable = type === 'line'
+          ? generator.line(start.x, start.y, end.x, end.y)
+          : generator.rectangle(start.x, start.y, end.x - start.x, end.y - start.y);
+
+        return {
+          id,
+          drawable,
+          start,
+          end,
+          type
+        };
+      }
+
+      case 'pencil': {
+        // @ts-ignore
+        return { id, type, points: [start] }
+      }
+
+      default:
+        throw new Error('Invalid element type');
+    }
   }
 
   const updateElement = (id: number, start: Coordinates, end: Coordinates, type: Tool): void => {
-    const updatedElement = createElement(id, start, end, type);
+    const elementsCopy = [...elements()];
 
-    const updatedElements = [...elements()];
-    updatedElements[id] = updatedElement;
-    
-    setElements(updatedElements, true);
+    switch (type) {
+      case 'line':
+      case 'rectangle': {
+        elementsCopy[id] = createElement(id, start, end, type);
+        break;
+      }
+
+      case 'pencil': {
+        const element = elementsCopy[id];
+        element.points = [...elementsCopy[id].points!, end];
+        break;
+      }
+    }
+
+    setElements(elementsCopy, true);
   }
 
   const getElementAtPosition = (coordinates: Coordinates): Element | null => {
@@ -76,10 +125,9 @@ const Workspace: Component = () => {
   const positionWithinElement = (coordinates: Coordinates, element: Element): MousePosition | null => {
     switch (element.type) {
       case 'line': {
-        const offset = distance(element.start, element.end) - distance(element.start, coordinates) - distance(element.end, coordinates);
+        const inside = onLine(element.start, element.end, coordinates) ? 'inside' : null;
         const start = isNearPosition(coordinates, element.start) ? 'start' : null;
         const end = isNearPosition(coordinates, element.end) ? 'end' : null;
-        const inside = Math.abs(offset) < 1 ? 'inside' : null;
 
         return start || end || inside; 
       }
@@ -97,9 +145,28 @@ const Workspace: Component = () => {
         return topLeft || topRight || bottomLeft || bottomRight || inside;
       }
 
+      case 'pencil': {
+        const betweenAnyPoint = element.points!.some((point: Point, index: number) => {
+          const nextPoint = element.points![index + 1];
+
+          if (!nextPoint) {
+            return false;
+          }
+
+          return onLine(point, nextPoint, coordinates, 5);
+        });
+
+        return betweenAnyPoint ? 'inside' : null; 
+      }
+
       default:
         return null;
     }
+  }
+
+  const onLine = (start: Coordinates, end: Coordinates, mouseCoordinates: Coordinates, distanceOffset = 3): boolean => {
+    const offset = distance(start, end) - distance(start, mouseCoordinates) - distance(end, mouseCoordinates);
+    return Math.abs(offset) < distanceOffset;
   }
 
   const isNearPosition = (mouseCoordinates: Coordinates, elementCoordinates: Coordinates): boolean => {
@@ -135,8 +202,9 @@ const Workspace: Component = () => {
 
     switch (type) {
       case 'line': {
-        if (start.x < end.x || (start.x == end.x && start.y < end.y))
+        if (start.x < end.x || (start.x == end.x && start.y < end.y)) {
           return { start, end };
+        }
 
         return { start: end, end: start };
       }
@@ -185,26 +253,35 @@ const Workspace: Component = () => {
       case 'selection': {
         const element = getElementAtPosition(coordinates);
 
-        if (!element)
+        if (!element) {
           return;
+        }
 
-        const elementOffsetX = offsetX - element.start.x;
-        const elementOffsetY = offsetY - element.start.y;
-  
-        setSelectedElement({ ...element, offset: { x: elementOffsetX, y: elementOffsetY } });
+        if (element.type === 'pencil') {
+          const xOffsets = element.points!.map(point => offsetX - point.x);
+          const yOffsets = element.points!.map(point => offsetY - point.y);
+          setSelectedElement({ ...element, xOffsets, yOffsets });
+        } else {
+          const elementOffsetX = offsetX - element.start.x;
+          const elementOffsetY = offsetY - element.start.y;
+          setSelectedElement({ ...element, offset: { x: elementOffsetX, y: elementOffsetY } });
+        }
+   
         // Creating a new entry in the history, so it is possible to undo and redo the movement
         setElements((previous: Element[]) => previous);
 
-        if (element.mousePosition == 'inside')
+        if (element.mousePosition == 'inside') {
           setAction('moving');
-        else
+        } else {
           setAction('resizing');
+        }
 
         break;
       }
 
       case 'line':
       case 'rectangle':
+      case 'pencil':
         const element = createElement(elements().length, coordinates, coordinates, tool());
 
         setElements((previous: Element[]) => [...previous, element]);
@@ -238,25 +315,39 @@ const Workspace: Component = () => {
       }
 
       case 'moving': {
-        if (!selectedElement)
+        const element = selectedElement();
+        if (!element) {
           return;
+        }
 
-        const { id, start, end, type, offset } = selectedElement()!;
-        const width = end.x - start.x;
-        const height = end.y - start.y;
+        if (element.type === 'pencil') {
+          const newPoints = element.points!.map((_, index) => ({
+            x: offsetX - element.xOffsets![index],
+            y: offsetY - element.yOffsets![index],
+          }));
 
-        if (!offset)
-          return;
-
-        const coordinatesOffset = { x: offsetX - offset.x, y: offsetY - offset.y };
-
-        updateElement(id, {
-          x: coordinatesOffset.x,
-          y: coordinatesOffset.y
-        }, {
-          x: coordinatesOffset.x + width,
-          y: coordinatesOffset.y + height
-        }, type);
+          const elementsCopy = [...elements()];
+          elementsCopy[element.id].points = newPoints;
+          setElements(elementsCopy);
+        } else {
+          const { id, start, end, type, offset } = element;
+          const width = end.x - start.x;
+          const height = end.y - start.y;
+  
+          if (!offset) {
+            return;
+          }
+  
+          const coordinatesOffset = { x: offsetX - offset.x, y: offsetY - offset.y };
+  
+          updateElement(id, {
+            x: coordinatesOffset.x,
+            y: coordinatesOffset.y
+          }, {
+            x: coordinatesOffset.x + width,
+            y: coordinatesOffset.y + height
+          }, type);
+        }
 
         break;
       }
@@ -266,6 +357,8 @@ const Workspace: Component = () => {
         const { start: resizedStart, end: resizedEnd } = resizedCoordinates({ x: offsetX, y: offsetY }, start, end, mousePosition!)!;
 
         updateElement(id, resizedStart, resizedEnd, type);
+
+        break;
       }
     };
   }
@@ -273,13 +366,14 @@ const Workspace: Component = () => {
   const handleMouseUp = (event: MouseEvent): void => {
     const element = selectedElement();
 
-    if (!element)
+    if (!element) {
       return;
+    }
 
     const index = element.id;
     const { id, type } = elements()[index];
 
-    if (action() == 'drawing' || action() == 'resizing') {
+    if ((action() == 'drawing' || action() == 'resizing') && adjustmentRequired(type)) {
       const { start, end } = adjustElementCoordinates(elements()[index])!;
       updateElement(id, start, end, type);
     }
@@ -287,9 +381,21 @@ const Workspace: Component = () => {
     setAction('default');
     setSelectedElement(null);
 
-    if (event.target instanceof HTMLCanvasElement)
-        event.target.style.cursor = 'default';
-  };
+    if (event.target instanceof HTMLCanvasElement) {
+      event.target.style.cursor = 'default';
+    }
+  }
+
+  const adjustmentRequired = (type: Tool): boolean => {
+    switch (type) {
+      case 'line':
+      case 'rectangle':
+        return true;
+
+      default:
+        return false;
+    }
+  } 
 
   return (
     <>
@@ -297,6 +403,12 @@ const Workspace: Component = () => {
         <button onClick={() => setTool('selection')} class={` ${tool() == 'selection' ? 'active' : ''}`}>
           <Show when={tool() == 'selection'} fallback={<img src={EmptyCursor} alt="Cursor" />}>
             <img src={FilledCursor} alt="Cursor" />
+          </Show>
+        </button>
+
+        <button onClick={() => setTool('pencil')} class={`${tool() == 'pencil' ? 'active' : ''}`}>
+          <Show when={tool() == 'pencil'} fallback={<img src={EmptyPencil} alt="Pencil" />}>
+            <img src={FilledPencil} alt="Pencil" />
           </Show>
         </button>
 

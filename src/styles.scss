@@ -1,6 +1,6 @@
 :root {
   --color-primary: #000000;
-  --color-secondary: #000d1a;
+  --color-secondary: #031221;
   --color-tertiary: #0059b3;
   --color-quaternary: #0099ff;
 }
@@ -24,5 +24,6 @@
 }
 
 body {
-  background: linear-gradient(var(--color-primary), var(--color-secondary)) fixed;
+  background: linear-gradient(var(--color-primary), var(--color-secondary));
+  height: 100vh;
 }

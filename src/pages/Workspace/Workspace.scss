@@ -17,7 +17,7 @@
   gap: 8px;
   margin: 0 8px 8px 8px;
   grid-auto-flow: column;
-  grid-template-columns: min-content auto auto min-content min-content min-content;
+  grid-template-columns: min-content auto auto auto min-content min-content min-content;
 
   button {
     background-color: var(--color-tertiary);
