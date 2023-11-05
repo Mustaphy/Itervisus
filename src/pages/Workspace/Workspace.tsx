@@ -372,8 +372,13 @@ const Workspace: Component = () => {
           }));
 
           const elementsCopy = [...elements()];
-          elementsCopy[element.id].points = newPoints;
-          setElements(elementsCopy);
+
+          elementsCopy[element.id] = {
+            ...elementsCopy[element.id],
+            points: newPoints,
+          };
+
+          setElements(elementsCopy, true);
         } else {
           const { id, start, end, type, offset } = element;
           const width = end.x - start.x;
