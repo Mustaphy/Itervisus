@@ -2,22 +2,12 @@
   overflow: hidden;
 }
 
-#canvas {
-  background-color: #ffffff;
-  -webkit-touch-callout: none; /* iOS Safari */
-  -webkit-user-select: none; /* Safari */
-  -khtml-user-select: none; /* Konqueror HTML */
-  -moz-user-select: none; /* Old versions of Firefox */
-  -ms-user-select: none; /* Internet Explorer/Edge */
-  user-select: none; /* Chrome, Edge, Opera and Firefox */
-}
-
 #option-selection {
   display: grid;
   gap: 8px;
   margin: 0 8px 8px 8px;
   grid-auto-flow: column;
-  grid-template-columns: min-content auto auto auto min-content min-content min-content;
+  grid-template-columns: min-content auto auto auto auto min-content min-content min-content;
 
   button {
     background-color: var(--color-tertiary);
@@ -60,5 +50,35 @@
     &:hover {
       filter: brightness(1.2);
     }
+  }
+}
+
+#whiteboard {
+  position: relative;
+
+  #canvas {
+    background-color: #ffffff;
+    -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+    -khtml-user-select: none; /* Konqueror HTML */
+    -moz-user-select: none; /* Old versions of Firefox */
+    -ms-user-select: none; /* Internet Explorer/Edge */
+    user-select: none; /* Chrome, Edge, Opera and Firefox */
+  }
+
+  textarea {
+    position: absolute;
+    width: 100vw;
+    font-family: sans-serif;
+    font-size: 24px;
+    color: #000000;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    resize: none;
+    overflow: hidden;
+    white-space: pre;
+    background: transparent;
   }
 }

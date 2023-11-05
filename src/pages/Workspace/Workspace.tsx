@@ -10,6 +10,8 @@ import EmptySquare from '../../assets/empty-square.svg';
 import FilledSquare from '../../assets/filled-square.svg';
 import EmptyPencil from '../../assets/empty-pencil.svg';
 import FilledPencil from '../../assets/filled-pencil.svg';
+import EmptyText from '../../assets/empty-text.svg';
+import FilledText from '../../assets/filled-text.svg';
 import Undo from '../../assets/undo.svg';
 import Redo from '../../assets/redo.svg';
 import TrashCan from '../../assets/trash-can.svg';
@@ -44,8 +46,25 @@ const Workspace: Component = () => {
 
     context.clearRect(0, 0, canvas.width, canvas.height);
 
-    elements().forEach(element => drawElement(element, roughCanvas, context));
+    elements().forEach(element => {
+      if (action() === 'writing' && selectedElement()!.id === element.id) {
+        return;
+      }
+
+      drawElement(element, roughCanvas, context);
+    });
   })
+
+  const textareaRef = (element: HTMLTextAreaElement) => {
+    if (action() !== 'writing') {
+      return;
+    }
+
+    setTimeout(() => {
+      element.focus();
+      element.value = selectedElement()!.text!;
+    })
+  }
 
   const drawElement = (element: Element, roughCanvas: RoughCanvas, context: CanvasRenderingContext2D): void => {
     switch (element.type) {
@@ -60,7 +79,15 @@ const Workspace: Component = () => {
         const stroke = getStroke(element.points!, { size: 3 })
         const outlinePoints = getSvgPathFromStroke(stroke);
 
-        context.fill(new Path2D(outlinePoints))
+        context.fill(new Path2D(outlinePoints));
+
+        break;
+      }
+
+      case 'text': {
+        context.textBaseline = 'top';
+        context.font = '24px sans-serif';
+        context.fillText(element.text!, element.start.x, element.start.y);
 
         break;
       }
@@ -72,7 +99,7 @@ const Workspace: Component = () => {
 
     switch (type) {
       case 'line':
-      case 'rectangle': {
+      case 'rectangle':
         const drawable = type === 'line'
           ? generator.line(start.x, start.y, end.x, end.y)
           : generator.rectangle(start.x, start.y, end.x - start.x, end.y - start.y);
@@ -84,33 +111,49 @@ const Workspace: Component = () => {
           end,
           type
         };
-      }
 
-      case 'pencil': {
+      case 'pencil':
         // @ts-ignore
         return { id, type, points: [start] }
-      }
+
+      case 'text':
+        // @ts-ignore
+        return { id, type, start, end, text: '' }
 
       default:
-        throw new Error('Invalid element type');
+        throw new Error('Unknown element type');
     }
   }
 
-  const updateElement = (id: number, start: Coordinates, end: Coordinates, type: Tool): void => {
+  const updateElement = (id: number, start: Coordinates, end: Coordinates, type: Tool, options: any = {}): void => {
     const elementsCopy = [...elements()];
 
     switch (type) {
       case 'line':
-      case 'rectangle': {
+      case 'rectangle':
         elementsCopy[id] = createElement(id, start, end, type);
-        break;
-      }
 
-      case 'pencil': {
-        const element = elementsCopy[id];
-        element.points = [...elementsCopy[id].points!, end];
         break;
-      }
+
+      case 'pencil':
+        const element = elementsCopy[id];
+
+        element.points = [...elementsCopy[id].points!, end];
+
+        break;
+
+      case 'text':
+        const canvas = document.querySelector('#canvas') as HTMLCanvasElement;
+        const context = canvas.getContext('2d') as CanvasRenderingContext2D;    
+        const textWidth = context.measureText(options.text).width;
+        const textHeight = 24;
+
+        elementsCopy[id] = {
+          ...createElement(id, start, { x: start.x + textWidth, y: start.y + textHeight }, type),
+          text: options.text,
+        }
+
+        break;
     }
 
     setElements(elementsCopy, true);
@@ -129,7 +172,7 @@ const Workspace: Component = () => {
         const start = isNearPosition(coordinates, element.start) ? 'start' : null;
         const end = isNearPosition(coordinates, element.end) ? 'end' : null;
 
-        return start || end || inside; 
+        return start ?? end ?? inside; 
       }
 
       case 'rectangle': {
@@ -142,7 +185,7 @@ const Workspace: Component = () => {
         const bottomRight = isNearPosition(coordinates, { x: endX, y: endY }) ? 'bottomRight' : null;
         const inside = coordinates.x >= startX &&  coordinates.x <= endX && coordinates.y >= startY && coordinates.y <= endY ? 'inside' : null;
 
-        return topLeft || topRight || bottomLeft || bottomRight || inside;
+        return topLeft ?? topRight ?? bottomLeft ?? bottomRight ?? inside;
       }
 
       case 'pencil': {
@@ -157,6 +200,13 @@ const Workspace: Component = () => {
         });
 
         return betweenAnyPoint ? 'inside' : null; 
+      }
+
+      case 'text': {
+        const { x: startX, y: startY } = element.start;
+        const { x: endX, y: endY } = element.end;
+
+        return coordinates.x >= startX &&  coordinates.x <= endX && coordinates.y >= startY && coordinates.y <= endY ? 'inside' : null;;
       }
 
       default:
@@ -201,22 +251,20 @@ const Workspace: Component = () => {
     const { start, end, type } = element;
 
     switch (type) {
-      case 'line': {
+      case 'line':
         if (start.x < end.x || (start.x == end.x && start.y < end.y)) {
           return { start, end };
         }
 
         return { start: end, end: start };
-      }
 
-      case 'rectangle': {
+      case 'rectangle':
         const minX = Math.min(start.x, end.x);
         const maxX = Math.max(start.x, end.x);
         const minY = Math.min(start.y, end.y);
         const maxY = Math.max(start.y, end.y);
 
         return { start: { x: minX, y: minY }, end: { x: maxX, y: maxY } }; 
-      }
 
       default:
         return { start, end };
@@ -246,50 +294,47 @@ const Workspace: Component = () => {
   }
 
   const handleMouseDown = (event: MouseEvent): void => {
+    if (action() === 'writing') {
+      return;
+    };
+
     const { offsetX, offsetY } = event;
     const coordinates = { x: offsetX, y: offsetY };
 
-    switch (tool()) {
-      case 'selection': {
-        const element = getElementAtPosition(coordinates);
+    if (tool() === 'selection') {
+      const element = getElementAtPosition(coordinates);
 
-        if (!element) {
-          return;
-        }
-
-        if (element.type === 'pencil') {
-          const xOffsets = element.points!.map(point => offsetX - point.x);
-          const yOffsets = element.points!.map(point => offsetY - point.y);
-          setSelectedElement({ ...element, xOffsets, yOffsets });
-        } else {
-          const elementOffsetX = offsetX - element.start.x;
-          const elementOffsetY = offsetY - element.start.y;
-          setSelectedElement({ ...element, offset: { x: elementOffsetX, y: elementOffsetY } });
-        }
-   
-        // Creating a new entry in the history, so it is possible to undo and redo the movement
-        setElements((previous: Element[]) => previous);
-
-        if (element.mousePosition == 'inside') {
-          setAction('moving');
-        } else {
-          setAction('resizing');
-        }
-
-        break;
+      if (!element) {
+        return;
       }
 
-      case 'line':
-      case 'rectangle':
-      case 'pencil':
-        const element = createElement(elements().length, coordinates, coordinates, tool());
+      if (element.type === 'pencil') {
+        const xOffsets = element.points!.map(point => offsetX - point.x);
+        const yOffsets = element.points!.map(point => offsetY - point.y);
+        setSelectedElement({ ...element, xOffsets, yOffsets });
+      } else {
+        const elementOffsetX = offsetX - element.start.x;
+        const elementOffsetY = offsetY - element.start.y;
+        setSelectedElement({ ...element, offset: { x: elementOffsetX, y: elementOffsetY } });
+      }
+  
+      // Creating a new entry in the history, so it is possible to undo and redo the movement
+      setElements((previous: Element[]) => previous);
 
-        setElements((previous: Element[]) => [...previous, element]);
-        setSelectedElement(element);
-        setAction('drawing');
+      if (element.mousePosition == 'inside') {
+        setAction('moving');
+      } else {
+        setAction('resizing');
+      }
 
-        break;
-    };
+      return;
+    }
+
+    const element = createElement(elements().length, coordinates, coordinates, tool());
+
+    setElements((previous: Element[]) => [...previous, element]);
+    setSelectedElement(element);
+    setAction(tool() === 'text' ? 'writing' : 'drawing');
   };
 
   const handleMouseMove = (event: MouseEvent): void => {
@@ -337,8 +382,9 @@ const Workspace: Component = () => {
           if (!offset) {
             return;
           }
-  
+
           const coordinatesOffset = { x: offsetX - offset.x, y: offsetY - offset.y };
+          const options = type === 'text' ? { text: element.text } : {};
   
           updateElement(id, {
             x: coordinatesOffset.x,
@@ -346,7 +392,7 @@ const Workspace: Component = () => {
           }, {
             x: coordinatesOffset.x + width,
             y: coordinatesOffset.y + height
-          }, type);
+          }, type, options);
         }
 
         break;
@@ -364,9 +410,16 @@ const Workspace: Component = () => {
   }
 
   const handleMouseUp = (event: MouseEvent): void => {
+    const { offsetX, offsetY } = event;
     const element = selectedElement();
 
     if (!element) {
+      return;
+    }
+
+    // If the mouse hasn't moved, start editing
+    if (element.type === 'text' && element.offset && offsetX - element.offset.x === element.start.x && offsetY - element.offset.y === element.start.y) {
+      setAction('writing');
       return;
     }
 
@@ -378,6 +431,10 @@ const Workspace: Component = () => {
       updateElement(id, start, end, type);
     }
 
+    if (action() === 'writing') {
+      return;
+    }
+
     setAction('default');
     setSelectedElement(null);
 
@@ -386,21 +443,23 @@ const Workspace: Component = () => {
     }
   }
 
-  const adjustmentRequired = (type: Tool): boolean => {
-    switch (type) {
-      case 'line':
-      case 'rectangle':
-        return true;
+  const handleBlur = (event: FocusEvent): void => {
+    const { id, start, type } = selectedElement()!;
 
-      default:
-        return false;
-    }
-  } 
+    setAction('default');
+    setSelectedElement(null);
+
+    updateElement(id, start, start, type, { text: (event.target as HTMLTextAreaElement).value });
+  }
+
+  const adjustmentRequired = (type: Tool): boolean => {
+    return type === 'line' || type === 'rectangle';
+  }
 
   return (
     <>
       <div id="option-selection">
-        <button onClick={() => setTool('selection')} class={` ${tool() == 'selection' ? 'active' : ''}`}>
+        <button onClick={() => setTool('selection')} class={`${tool() == 'selection' ? 'active' : ''}`}>
           <Show when={tool() == 'selection'} fallback={<img src={EmptyCursor} alt="Cursor" />}>
             <img src={FilledCursor} alt="Cursor" />
           </Show>
@@ -419,8 +478,14 @@ const Workspace: Component = () => {
         </button>
 
         <button onClick={() => setTool('rectangle')} class={`${tool() == 'rectangle' ? 'active' : ''}`}>
-          <Show when={tool() == 'rectangle'} fallback={<img src={EmptySquare} alt="Square" />}>
+          <Show when={tool() == 'rectangle'} fallback={<img src={EmptySquare} alt="Rectangle" />}>
             <img src={FilledSquare} alt="Square" />
+          </Show>
+        </button>
+
+        <button onClick={() => setTool('text')} class={`${tool() == 'text' ? 'active' : ''}`}>
+          <Show when={tool() == 'text'} fallback={<img src={EmptyText} alt="Text" />}>
+            <img src={FilledText} alt="Text" />
           </Show>
         </button>
 
@@ -433,19 +498,29 @@ const Workspace: Component = () => {
         </button>
 
         <button id="trash" onClick={() => setElements([])}>
-          <img src={TrashCan} alt="Square" />
+          <img src={TrashCan} alt="Trash" />
         </button>
       </div>
 
-      <canvas
-        id="canvas"
-        width={window.innerWidth}
-        height={window.innerHeight}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-      >
-      </canvas>
+      <div id="whiteboard">
+        <Show when={action() === 'writing' && selectedElement()}>
+          <textarea
+            ref={textareaRef}
+            onBlur={handleBlur}
+            style={{ top: `${selectedElement()!.start.y + 1}px`, left: `${selectedElement()!.start.x}px` }}
+          />
+        </Show>
+
+        <canvas
+          id="canvas"
+          width={window.innerWidth}
+          height={window.innerHeight}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+        >
+        </canvas>
+      </div>
     </>
   )
 }
