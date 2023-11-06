@@ -16,6 +16,7 @@ import Undo from '../../assets/undo.svg';
 import Redo from '../../assets/redo.svg';
 import TrashCan from '../../assets/trash-can.svg';
 import { useHistory } from '../../hooks/useHistory';
+import { usePressedKeys } from '../../hooks/usePressedKeys';
 import { RoughCanvas } from 'roughjs/bin/canvas';
 import getStroke from 'perfect-freehand';
 import { getSvgPathFromStroke } from '../../utils/perfect-freehand-utils';
@@ -25,6 +26,9 @@ const Workspace: Component = () => {
   const [selectedElement, setSelectedElement] = createSignal(null as Element | null);
   const [action, setAction] = createSignal('default' as Action);
   const [tool, setTool] = createSignal('pencil' as Tool);
+  const [panOffset, setPanOffset] = createSignal({ x: 0, y: 0 } as Coordinates);
+  const [startPanMousePosition, setStartPanMousePosition] = createSignal({ x: 0, y: 0 } as Coordinates);
+  const pressedKeys = usePressedKeys();
 
   document.addEventListener('keydown', event => {
     if ((event.metaKey || event.ctrlKey) && event.key == 'z') {
@@ -39,12 +43,21 @@ const Workspace: Component = () => {
     }
   })
 
+  document.addEventListener('wheel', event => {
+    setPanOffset(previous => ({
+      x: previous.x - event.deltaX,
+      y: previous.y - event.deltaY,
+    }));
+  })
+
   createEffect(() => {
     const canvas = document.querySelector('#canvas') as HTMLCanvasElement;
     const context = canvas.getContext('2d') as CanvasRenderingContext2D;    
     const roughCanvas = rough.canvas(canvas);
 
     context.clearRect(0, 0, canvas.width, canvas.height);
+    context.save();
+    context.translate(panOffset().x, panOffset().y);
 
     elements().forEach(element => {
       if (action() === 'writing' && selectedElement()!.id === element.id) {
@@ -53,7 +66,10 @@ const Workspace: Component = () => {
 
       drawElement(element, roughCanvas, context);
     });
-  })
+
+    // Restoring translation of the context, so the next time the canvas is drawn, it translates it from the original position
+    context.restore();
+  }, [panOffset])
 
   const textareaRef = (element: HTMLTextAreaElement) => {
     if (action() !== 'writing') {
@@ -293,13 +309,27 @@ const Workspace: Component = () => {
     }
   }
 
+  const getMouseCoordinates = (event: MouseEvent): Coordinates => {
+    const x = event.offsetX - panOffset().x;
+    const y = event.offsetY - panOffset().y;
+    return { x, y };
+  }
+
   const handleMouseDown = (event: MouseEvent): void => {
     if (action() === 'writing') {
       return;
     };
 
-    const { offsetX, offsetY } = event;
-    const coordinates = { x: offsetX, y: offsetY };
+    const { x, y } = getMouseCoordinates(event);
+    const coordinates = { x, y };
+
+    console.log(pressedKeys())
+
+    if (event.button === 1 || pressedKeys().has(' ')) {
+      setAction('panning');
+      setStartPanMousePosition(coordinates);
+      return;
+    }
 
     if (tool() === 'selection') {
       const element = getElementAtPosition(coordinates);
@@ -309,12 +339,12 @@ const Workspace: Component = () => {
       }
 
       if (element.type === 'pencil') {
-        const xOffsets = element.points!.map(point => offsetX - point.x);
-        const yOffsets = element.points!.map(point => offsetY - point.y);
+        const xOffsets = element.points!.map(point => x - point.x);
+        const yOffsets = element.points!.map(point => y - point.y);
         setSelectedElement({ ...element, xOffsets, yOffsets });
       } else {
-        const elementOffsetX = offsetX - element.start.x;
-        const elementOffsetY = offsetY - element.start.y;
+        const elementOffsetX = x - element.start.x;
+        const elementOffsetY = y - element.start.y;
         setSelectedElement({ ...element, offset: { x: elementOffsetX, y: elementOffsetY } });
       }
   
@@ -338,11 +368,23 @@ const Workspace: Component = () => {
   };
 
   const handleMouseMove = (event: MouseEvent): void => {
-    const { offsetX, offsetY } = event;
+    const { x, y } = getMouseCoordinates(event);
+
+    if (action() === 'panning') {
+      const deltaX = x - startPanMousePosition().x;
+      const deltaY = y - startPanMousePosition().y;
+
+      setPanOffset(previous => ({
+        x: previous.x + deltaX,
+        y: previous.y + deltaY,
+      }));
+
+      return;
+    };
 
     if (tool() == 'selection') {
       if (event.target instanceof HTMLCanvasElement) {
-        const element = getElementAtPosition({ x: offsetX, y: offsetY });
+        const element = getElementAtPosition({ x, y });
 
         event.target.style.cursor = element?.mousePosition
           ? cursorForPosition(element.mousePosition)
@@ -354,7 +396,7 @@ const Workspace: Component = () => {
       case 'drawing': {
         const index = elements().length - 1;
         const { start } = elements()[index];
-        updateElement(index, start, { x: offsetX, y: offsetY }, tool());
+        updateElement(index, start, { x: x, y: y }, tool());
 
         break;
       }
@@ -367,8 +409,8 @@ const Workspace: Component = () => {
 
         if (element.type === 'pencil') {
           const newPoints = element.points!.map((_, index) => ({
-            x: offsetX - element.xOffsets![index],
-            y: offsetY - element.yOffsets![index],
+            x: x - element.xOffsets![index],
+            y: y - element.yOffsets![index],
           }));
 
           const elementsCopy = [...elements()];
@@ -388,7 +430,7 @@ const Workspace: Component = () => {
             return;
           }
 
-          const coordinatesOffset = { x: offsetX - offset.x, y: offsetY - offset.y };
+          const coordinatesOffset = { x: x - offset.x, y: y - offset.y };
           const options = type === 'text' ? { text: element.text } : {};
   
           updateElement(id, {
@@ -405,7 +447,7 @@ const Workspace: Component = () => {
 
       case 'resizing': {
         const { id, type, mousePosition, start, end } = selectedElement()!;
-        const { start: resizedStart, end: resizedEnd } = resizedCoordinates({ x: offsetX, y: offsetY }, start, end, mousePosition!)!;
+        const { start: resizedStart, end: resizedEnd } = resizedCoordinates({ x: x, y: y }, start, end, mousePosition!)!;
 
         updateElement(id, resizedStart, resizedEnd, type);
 
@@ -417,6 +459,11 @@ const Workspace: Component = () => {
   const handleMouseUp = (event: MouseEvent): void => {
     const { offsetX, offsetY } = event;
     const element = selectedElement();
+
+    if (action() === 'panning') {
+      setAction('default');
+      return;
+    }
 
     if (!element) {
       return;
@@ -512,7 +559,10 @@ const Workspace: Component = () => {
           <textarea
             ref={textareaRef}
             onBlur={handleBlur}
-            style={{ top: `${selectedElement()!.start.y + 1}px`, left: `${selectedElement()!.start.x}px` }}
+            style={{
+              top: `${selectedElement()!.start.y + 1 + panOffset().y}px`,
+              left: `${selectedElement()!.start.x + panOffset().x}px`
+            }}
           />
         </Show>
 

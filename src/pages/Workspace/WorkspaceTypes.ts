@@ -31,6 +31,6 @@ export type Placement = {
 
 export type Tool = 'selection' | 'pencil' | 'line' | 'rectangle' | 'text';
 
-export type Action = 'default' | 'drawing' | 'moving' | 'resizing' | 'writing';
+export type Action = 'default' | 'drawing' | 'moving' | 'resizing' | 'writing' | 'panning';
 
 export type MousePosition = 'inside' | 'start' | 'end' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
