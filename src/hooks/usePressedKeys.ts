@@ -10,7 +10,6 @@ export const usePressedKeys = (): Accessor<Set<string>> => {
 
   const handleKeyDown = (event: KeyboardEvent) => {
     setPressedKeys(prevKeys => new Set(prevKeys).add(event.key));
-    console.log(pressedKeys())
   };
 
   const handleKeyUp = (event: KeyboardEvent) => {

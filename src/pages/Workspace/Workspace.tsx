@@ -14,9 +14,10 @@ import EmptyText from '../../assets/empty-text.svg';
 import FilledText from '../../assets/filled-text.svg';
 import Undo from '../../assets/undo.svg';
 import Redo from '../../assets/redo.svg';
+import Plus from '../../assets/plus.svg';
+import Minus from '../../assets/minus.svg';
 import TrashCan from '../../assets/trash-can.svg';
 import { useHistory } from '../../hooks/useHistory';
-import { usePressedKeys } from '../../hooks/usePressedKeys';
 import { RoughCanvas } from 'roughjs/bin/canvas';
 import getStroke from 'perfect-freehand';
 import { getSvgPathFromStroke } from '../../utils/perfect-freehand-utils';
@@ -28,7 +29,8 @@ const Workspace: Component = () => {
   const [tool, setTool] = createSignal('pencil' as Tool);
   const [panOffset, setPanOffset] = createSignal({ x: 0, y: 0 } as Coordinates);
   const [startPanMousePosition, setStartPanMousePosition] = createSignal({ x: 0, y: 0 } as Coordinates);
-  const pressedKeys = usePressedKeys();
+  const [scale, setScale] = createSignal(1);
+  const [scaleOffset, setScaleOffset] = createSignal({ x: 0, y: 0 } as Coordinates);
 
   document.addEventListener('keydown', event => {
     if ((event.metaKey || event.ctrlKey) && event.key == 'z') {
@@ -44,10 +46,7 @@ const Workspace: Component = () => {
   })
 
   document.addEventListener('wheel', event => {
-    setPanOffset(previous => ({
-      x: previous.x - event.deltaX,
-      y: previous.y - event.deltaY,
-    }));
+    onZoom(event.deltaY * -0.01);
   })
 
   createEffect(() => {
@@ -56,8 +55,16 @@ const Workspace: Component = () => {
     const roughCanvas = rough.canvas(canvas);
 
     context.clearRect(0, 0, canvas.width, canvas.height);
+
+    const scaledWidth = canvas.width * scale();
+    const scaledHeight = canvas.height * scale();
+    const scaleOffsetX = (scaledWidth - canvas.width) / 2;
+    const scaleOffsetY = (scaledHeight - canvas.height) / 2;
+    setScaleOffset({ x: scaleOffsetX, y: scaleOffsetY });
+
     context.save();
-    context.translate(panOffset().x, panOffset().y);
+    context.translate(panOffset().x * scale() - scaleOffsetX, panOffset().y * scale() - scaleOffsetY);
+    context.scale(scale(), scale());
 
     elements().forEach(element => {
       if (action() === 'writing' && selectedElement()!.id === element.id) {
@@ -102,7 +109,7 @@ const Workspace: Component = () => {
 
       case 'text': {
         context.textBaseline = 'top';
-        context.font = '24px sans-serif';
+        context.font = '24px "Gill Sans", sans-serif';
         context.fillText(element.text!, element.start.x, element.start.y);
 
         break;
@@ -310,8 +317,8 @@ const Workspace: Component = () => {
   }
 
   const getMouseCoordinates = (event: MouseEvent): Coordinates => {
-    const x = event.offsetX - panOffset().x;
-    const y = event.offsetY - panOffset().y;
+    const x = (event.offsetX - panOffset().x * scale() + scaleOffset().x) / scale();
+    const y = (event.offsetY - panOffset().y * scale() + scaleOffset().y) / scale();
     return { x, y };
   }
 
@@ -323,9 +330,7 @@ const Workspace: Component = () => {
     const { x, y } = getMouseCoordinates(event);
     const coordinates = { x, y };
 
-    console.log(pressedKeys())
-
-    if (event.button === 1 || pressedKeys().has(' ')) {
+    if (event.button === 1) {
       setAction('panning');
       setStartPanMousePosition(coordinates);
       return;
@@ -508,6 +513,10 @@ const Workspace: Component = () => {
     return type === 'line' || type === 'rectangle';
   }
 
+  const onZoom = (delta: number): void => {
+    setScale(previous => Math.min(Math.max(previous + delta, 0.1), 10));
+  }
+
   return (
     <>
       <div id="option-selection">
@@ -549,6 +558,18 @@ const Workspace: Component = () => {
           <img src={Redo} alt="Redo" />
         </button>
 
+        <button onClick={() => onZoom(-0.1)}>
+          <img src={Minus} alt="Zoom out" />
+        </button>
+
+        <button onClick={() => setScale(1)}>
+          {new Intl.NumberFormat("en-US", { style: "percent"}).format(scale())}
+        </button>
+
+        <button onClick={() => onZoom(0.1)}>
+          <img src={Plus} alt="Zoom in" />
+        </button>
+
         <button id="trash" onClick={() => setElements([])}>
           <img src={TrashCan} alt="Trash" />
         </button>
@@ -560,8 +581,9 @@ const Workspace: Component = () => {
             ref={textareaRef}
             onBlur={handleBlur}
             style={{
-              top: `${selectedElement()!.start.y + 1 + panOffset().y}px`,
-              left: `${selectedElement()!.start.x + panOffset().x}px`
+              top: `${(selectedElement()!.start.y + 1) * scale() + panOffset().y * scale() - scaleOffset().y}px`,
+              left: `${selectedElement()!.start.x * scale() + panOffset().x * scale() - scaleOffset().x}px`,
+              "font-size": `${24 * scale()}px`,
             }}
           />
         </Show>
