@@ -127,12 +127,10 @@ const Workspace: Component = () => {
         };
 
       case 'pencil':
-        // @ts-ignore
-        return { id, type, points: [start] }
+        return { id, type, points: [start] } as Element;
 
       case 'text':
-        // @ts-ignore
-        return { id, type, start, end, text: '' }
+        return { id, type, start, end, text: '' } as Element;
 
       default:
         throw new Error('Unknown element type');
