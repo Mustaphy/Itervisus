@@ -23,7 +23,7 @@ import Zoom from '../../components/Zoom/Zoom';
 import useScale from '../../hooks/useScale';
 
 const Workspace: Component = () => {
-  const { elements, setElements, undo, redo } = useHistory([]);
+  const { elements, setElements, undo, canUndo, redo, canRedo } = useHistory([]);
   const [selectedElement, setSelectedElement] = createSignal(null as Element | null);
   const [action, setAction] = createSignal('default' as Action);
   const [tool, setTool] = createSignal('pencil' as Tool);
@@ -535,11 +535,11 @@ const Workspace: Component = () => {
           </Show>
         </button>
 
-        <button id="undo" onClick={undo}>
+        <button id="undo" onClick={undo} disabled={!canUndo()} class={!canUndo() ? 'disabled' : ''}>
           <img src={Undo} alt="Undo" />
         </button>
 
-        <button id="redo" onClick={redo}>
+        <button id="redo" onClick={redo} disabled={!canRedo()} class={!canRedo() ? 'disabled' : ''}>
           <img src={Redo} alt="Redo" />
         </button>
 

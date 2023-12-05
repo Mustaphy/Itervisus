@@ -5,7 +5,9 @@ type History = {
   elements: () => Element[],
   setElements: (action: Function | Element[], overwrite?: boolean) => void,
   undo: () => void,
+  canUndo: () => boolean,
   redo: () => void,
+  canRedo: () => boolean
 };
 
 export const useHistory = (initialElements: Element[]): History => {
@@ -43,10 +45,20 @@ export const useHistory = (initialElements: Element[]): History => {
     index() < history().length - 1 && setIndex(previousState => previousState + 1);
   }
 
+  const canUndo = () => {
+    return index() > 0;
+  }
+
+  const canRedo = () => {
+    return index() < history().length - 1;
+  }
+
   return {
     elements: getElements,
     setElements,
     undo,
-    redo
+    canUndo,
+    redo,
+    canRedo
   };
 }
