@@ -14,13 +14,13 @@ import EmptyText from '../../assets/empty-text.svg';
 import FilledText from '../../assets/filled-text.svg';
 import Undo from '../../assets/undo.svg';
 import Redo from '../../assets/redo.svg';
-import Plus from '../../assets/plus.svg';
-import Minus from '../../assets/minus.svg';
 import TrashCan from '../../assets/trash-can.svg';
 import { useHistory } from '../../hooks/useHistory';
 import { RoughCanvas } from 'roughjs/bin/canvas';
 import getStroke from 'perfect-freehand';
 import { getSvgPathFromStroke } from '../../utils/perfect-freehand-utils';
+import Zoom from '../../components/Zoom/Zoom';
+import useScale from '../../hooks/useScale';
 
 const Workspace: Component = () => {
   const { elements, setElements, undo, redo } = useHistory([]);
@@ -29,8 +29,7 @@ const Workspace: Component = () => {
   const [tool, setTool] = createSignal('pencil' as Tool);
   const [panOffset, setPanOffset] = createSignal({ x: 0, y: 0 } as Coordinates);
   const [startPanMousePosition, setStartPanMousePosition] = createSignal({ x: 0, y: 0 } as Coordinates);
-  const [scale, setScale] = createSignal(1);
-  const [scaleOffset, setScaleOffset] = createSignal({ x: 0, y: 0 } as Coordinates);
+  const { scale, setScale, scaleOffset } = useScale();
 
   document.addEventListener('keydown', event => {
     if ((event.metaKey || event.ctrlKey) && event.key == 'z') {
@@ -45,10 +44,6 @@ const Workspace: Component = () => {
     }
   })
 
-  document.addEventListener('wheel', event => {
-    onZoom(event.deltaY * -0.01);
-  })
-
   createEffect(() => {
     const canvas = document.querySelector('#canvas') as HTMLCanvasElement;
     const context = canvas.getContext('2d') as CanvasRenderingContext2D;    
@@ -56,14 +51,10 @@ const Workspace: Component = () => {
 
     context.clearRect(0, 0, canvas.width, canvas.height);
 
-    const scaledWidth = canvas.width * scale();
-    const scaledHeight = canvas.height * scale();
-    const scaleOffsetX = (scaledWidth - canvas.width) / 2;
-    const scaleOffsetY = (scaledHeight - canvas.height) / 2;
-    setScaleOffset({ x: scaleOffsetX, y: scaleOffsetY });
+    const { x, y } = scaleOffset();
 
     context.save();
-    context.translate(panOffset().x * scale() - scaleOffsetX, panOffset().y * scale() - scaleOffsetY);
+    context.translate(panOffset().x * scale() - x, panOffset().y * scale() - y);
     context.scale(scale(), scale());
 
     elements().forEach(element => {
@@ -513,10 +504,6 @@ const Workspace: Component = () => {
     return type === 'line' || type === 'rectangle';
   }
 
-  const onZoom = (delta: number): void => {
-    setScale(previous => Math.min(Math.max(previous + delta, 0.1), 10));
-  }
-
   return (
     <>
       <div id="option-selection">
@@ -558,17 +545,7 @@ const Workspace: Component = () => {
           <img src={Redo} alt="Redo" />
         </button>
 
-        <button onClick={() => onZoom(-0.1)}>
-          <img src={Minus} alt="Zoom out" />
-        </button>
-
-        <button onClick={() => setScale(1)}>
-          {new Intl.NumberFormat("en-US", { style: "percent"}).format(scale())}
-        </button>
-
-        <button onClick={() => onZoom(0.1)}>
-          <img src={Plus} alt="Zoom in" />
-        </button>
+        <Zoom scale={scale} setScale={setScale} />
 
         <button id="trash" onClick={() => setElements([])}>
           <img src={TrashCan} alt="Trash" />

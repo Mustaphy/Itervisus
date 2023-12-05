@@ -1,0 +1,24 @@
+#zoom {
+  display: grid;
+  grid-auto-flow: column;
+
+  button {
+    width: min-content;
+    background: transparent;
+    padding: 4px;
+    font-size: 16px;
+    transition: filter 0.2s ease-in-out;
+
+    &:hover {
+      filter: brightness(0.8);
+    }
+
+    img {
+      transition: filter 0.2s ease-in-out;
+
+      &:hover {
+        filter: brightness(0) invert(70%);
+      }
+    }
+  }
+}
