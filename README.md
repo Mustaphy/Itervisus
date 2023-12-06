@@ -1,5 +1,5 @@
 # Itervisus
-**Itervisus** is a web application to serve as your versatile digital whiteboard. You can access the application via the following link: https://yogurtware.github.io/Itervisus/.
+**Itervisus** is a web application to serve as your versatile digital whiteboard. You can access the application via the following link: https://mustaphy.github.io/Itervisus/.
 
 *Please note that this project is still a work in progress. Therefore, many features are not yet available or not fully functional.*
 
